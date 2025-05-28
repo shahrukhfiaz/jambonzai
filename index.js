@@ -107,7 +107,7 @@ async function runLLM(userText) {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-4.1-2025-04-14',
+        model: 'gpt-4o',
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userText }
@@ -163,7 +163,8 @@ app.post('/', (req, res) => {
     {
       verb: "gather",
       input: ["speech"],
-      actionHook: "/dialog"
+      actionHook: "/dialog",
+      bargein: true
     }
   ]);
 });
@@ -191,7 +192,8 @@ app.post('/dialog', async (req, res) => {
       {
         verb: "gather",
         input: ["speech"],
-        actionHook: "/dialog"
+        actionHook: "/dialog",
+        bargein: true
       }
     ]);
   } catch (err) {
@@ -205,7 +207,8 @@ app.post('/dialog', async (req, res) => {
       {
         verb: "gather",
         input: ["speech"],
-        actionHook: "/dialog"
+        actionHook: "/dialog",
+        bargein: true
       }
     ]);
   }
