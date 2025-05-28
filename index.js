@@ -130,6 +130,23 @@ async function runLLM(userText) {
   }
 }
 
+// ====== Deepgram/Google/Jambonz Speech Extraction Helper ======
+function extractTranscript(body) {
+  try {
+    if (
+      body &&
+      body.speech &&
+      body.speech.alternatives &&
+      Array.isArray(body.speech.alternatives) &&
+      body.speech.alternatives[0] &&
+      body.speech.alternatives[0].transcript
+    ) {
+      return body.speech.alternatives[0].transcript.trim();
+    }
+  } catch (e) {}
+  return '';
+}
+
 // ====== Health Check ======
 app.get('/', (req, res) => {
   res.send("Jambonz AI Agent (Sara) is running.");
@@ -156,7 +173,7 @@ app.post('/dialog', async (req, res) => {
   console.log("🔔 Received POST /dialog");
   try {
     console.log("📝 Raw body:", JSON.stringify(req.body));
-    const speech = req.body && req.body.speech ? req.body.speech.trim() : '';
+    const speech = extractTranscript(req.body);
     if (speech) {
       console.log(`🗣️ Detected speech (STT): "${speech}"`);
     } else {
