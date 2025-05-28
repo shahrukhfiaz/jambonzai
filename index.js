@@ -95,23 +95,23 @@ digitalstorming.com
 // ====== Middleware ======
 app.use(bodyParser.json());
 
-// ====== Memory for Call Sessions ======
-const sessionHistory = {};
-
 // ====== LLM Helper ======
-async function runLLM(messages) {
+async function runLLM(userText) {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       console.error("❌ Missing OPENAI_API_KEY!");
       return "I'm experiencing technical difficulties. Please try again later.";
     }
-    console.log(`🔵 Sending to LLM:`, messages);
+    console.log(`🔵 Sending to LLM: "${userText}"`);
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-4.1-2025-04-14',
-        messages,
+        model: 'gpt-4o',
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userText }
+        ],
         max_tokens: 300
       },
       {
@@ -173,27 +173,14 @@ app.post('/dialog', async (req, res) => {
   console.log("🔔 Received POST /dialog");
   try {
     console.log("📝 Raw body:", JSON.stringify(req.body));
-
-    const callSid = req.body.call_sid || req.body.CallSid || req.body.callsid || 'default_session';
-    // Init session if not exists
-    if (!sessionHistory[callSid]) {
-      sessionHistory[callSid] = [
-        { role: "system", content: SYSTEM_PROMPT }
-      ];
-    }
-
     const speech = extractTranscript(req.body);
     if (speech) {
       console.log(`🗣️ Detected speech (STT): "${speech}"`);
-      sessionHistory[callSid].push({ role: "user", content: speech });
     } else {
       console.warn("⚠️ No speech detected from STT.");
-      sessionHistory[callSid].push({ role: "user", content: "No response detected." });
     }
-
-    // Send full history to LLM
-    const aiReply = await runLLM(sessionHistory[callSid]);
-    sessionHistory[callSid].push({ role: "assistant", content: aiReply });
+    const promptText = speech || "The caller did not respond. Politely prompt them again.";
+    const aiReply = await runLLM(promptText);
 
     console.log(`🔊 Sending to TTS: "${aiReply}"`);
     return res.json([
