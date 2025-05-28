@@ -107,7 +107,7 @@ async function runLLM(userText) {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-4o',
+        model: 'gpt-4_1-2025-04-14',
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userText }
