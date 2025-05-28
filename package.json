@@ -1,7 +1,7 @@
 {
   "name": "jambonz-ai-agent",
   "version": "1.0.0",
-  "description": "AI Voice Agent Webhook for Jambonz",
+  "description": "AI Voice Agent Webhook for Jambonz using OpenAI",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
