@@ -92,7 +92,10 @@ Phone : (707) 777-0379
 digitalstorming.com
 `;
 
-// ====== OPENAI HELPER FUNCTION WITH LOGGING ======
+// ====== Middleware ======
+app.use(bodyParser.json());
+
+// ====== LLM Helper ======
 async function runLLM(userText) {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
@@ -127,73 +130,71 @@ async function runLLM(userText) {
   }
 }
 
-// ====== JAMBONZ INITIAL CALL HANDLER ======
-app.post('/', async (req, res) => {
-  console.log("📞 Received initial call POST /");
-  try {
-    return res.json([
-      {
-        verb: "say",
-        text: "Hello! I am Sara from Digital Storming. Is this the trucking company I am speaking with?",
-      },
-      {
-        verb: "gather",
-        input: ["speech"],
-        actionHook: `${process.env.PUBLIC_URL || "https://jambonzai-production.up.railway.app"}/dialog`
-      }
-    ]);
-  } catch (err) {
-    console.error("❌ Error in / handler:", err);
-    return res.json([
-      {
-        verb: "say",
-        text: "Sorry, I am unable to process your request at the moment. Please call again later."
-      }
-    ]);
-  }
-});
-
-// ====== DIALOG HANDLER WITH LOGGING ======
-app.post('/dialog', async (req, res) => {
-  console.log("🔔 Received POST /dialog");
-  console.log("📝 Raw body:", JSON.stringify(req.body));
-
-  let speech = req.body && req.body.speech ? req.body.speech.trim() : '';
-  if (speech) {
-    console.log(`🗣️ Detected speech (STT): "${speech}"`);
-  } else {
-    console.warn("⚠️ No speech detected from STT.");
-  }
-
-  let promptText = speech || "The caller did not respond. Politely prompt them again.";
-
-  let aiReply = await runLLM(promptText);
-  if (!aiReply) {
-    aiReply = "Sorry, I didn't catch that. Can you please repeat?";
-    console.warn("⚠️ LLM reply was empty, used fallback.");
-  }
-
-  // Log what we're sending back for TTS
-  console.log(`🔊 Sending to TTS: "${aiReply}"`);
-
-  return res.json([
-    {
-      verb: "say",
-      text: aiReply
-    },
-    {
-      verb: "gather",
-      input: ["speech"],
-      actionHook: `${process.env.PUBLIC_URL || "https://jambonzai-production.up.railway.app"}/dialog`
-    }
-  ]);
-});
-
-// Healthcheck endpoint
+// ====== Health Check ======
 app.get('/', (req, res) => {
   res.send("Jambonz AI Agent (Sara) is running.");
 });
 
+// ====== Initial Call Handler ======
+app.post('/', (req, res) => {
+  console.log("📞 Received initial call POST /");
+  return res.json([
+    {
+      verb: "say",
+      text: "Hello! I am Sara from Digital Storming. Is this the trucking company I am speaking with?"
+    },
+    {
+      verb: "gather",
+      input: ["speech"],
+      actionHook: "/dialog"
+    }
+  ]);
+});
+
+// ====== Dialog Handler ======
+app.post('/dialog', async (req, res) => {
+  console.log("🔔 Received POST /dialog");
+  try {
+    console.log("📝 Raw body:", JSON.stringify(req.body));
+    const speech = req.body && req.body.speech ? req.body.speech.trim() : '';
+    if (speech) {
+      console.log(`🗣️ Detected speech (STT): "${speech}"`);
+    } else {
+      console.warn("⚠️ No speech detected from STT.");
+    }
+    const promptText = speech || "The caller did not respond. Politely prompt them again.";
+    const aiReply = await runLLM(promptText);
+
+    console.log(`🔊 Sending to TTS: "${aiReply}"`);
+    return res.json([
+      {
+        verb: "say",
+        text: aiReply
+      },
+      {
+        verb: "gather",
+        input: ["speech"],
+        actionHook: "/dialog"
+      }
+    ]);
+  } catch (err) {
+    console.error("❌ Handler error in /dialog:", err);
+    // Always send a valid fallback response if anything fails
+    return res.json([
+      {
+        verb: "say",
+        text: "Sorry, something went wrong. Can you please repeat?"
+      },
+      {
+        verb: "gather",
+        input: ["speech"],
+        actionHook: "/dialog"
+      }
+    ]);
+  }
+});
+
+// ====== Start Server ======
 app.listen(PORT, () => {
   console.log(`🚀 Jambonz AI Agent webhook listening on port ${PORT}`);
 });
