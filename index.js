@@ -92,18 +92,19 @@ Phone : (707) 777-0379
 digitalstorming.com
 `;
 
-// ====== OPENAI HELPER FUNCTION ======
+// ====== OPENAI HELPER FUNCTION WITH LOGGING ======
 async function runLLM(userText) {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      console.error("Missing OPENAI_API_KEY!");
+      console.error("❌ Missing OPENAI_API_KEY!");
       return "I'm experiencing technical difficulties. Please try again later.";
     }
+    console.log(`🔵 Sending to LLM: "${userText}"`);
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-4o', // Or 'gpt-3.5-turbo'
+        model: 'gpt-4o',
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userText }
@@ -117,16 +118,18 @@ async function runLLM(userText) {
         }
       }
     );
-    return response.data.choices[0].message.content.trim();
+    const reply = response.data.choices[0].message.content.trim();
+    console.log(`🟢 LLM reply: "${reply}"`);
+    return reply;
   } catch (error) {
-    console.error("OpenAI API error:", error.response?.data || error.message);
+    console.error("❌ OpenAI API error:", error.response?.data || error.message);
     return "Sorry, I'm having trouble responding right now. Can you please repeat?";
   }
 }
 
 // ====== JAMBONZ INITIAL CALL HANDLER ======
 app.post('/', async (req, res) => {
-  // Always return a valid greeting and gather, even if something fails
+  console.log("📞 Received initial call POST /");
   try {
     return res.json([
       {
@@ -140,7 +143,7 @@ app.post('/', async (req, res) => {
       }
     ]);
   } catch (err) {
-    // Fallback if something goes wrong
+    console.error("❌ Error in / handler:", err);
     return res.json([
       {
         verb: "say",
@@ -150,15 +153,29 @@ app.post('/', async (req, res) => {
   }
 });
 
-// ====== DIALOG HANDLER ======
+// ====== DIALOG HANDLER WITH LOGGING ======
 app.post('/dialog', async (req, res) => {
+  console.log("🔔 Received POST /dialog");
+  console.log("📝 Raw body:", JSON.stringify(req.body));
+
   let speech = req.body && req.body.speech ? req.body.speech.trim() : '';
+  if (speech) {
+    console.log(`🗣️ Detected speech (STT): "${speech}"`);
+  } else {
+    console.warn("⚠️ No speech detected from STT.");
+  }
+
   let promptText = speech || "The caller did not respond. Politely prompt them again.";
 
   let aiReply = await runLLM(promptText);
-  if (!aiReply) aiReply = "Sorry, I didn't catch that. Can you please repeat?";
+  if (!aiReply) {
+    aiReply = "Sorry, I didn't catch that. Can you please repeat?";
+    console.warn("⚠️ LLM reply was empty, used fallback.");
+  }
 
-  // Always return a valid JSON response
+  // Log what we're sending back for TTS
+  console.log(`🔊 Sending to TTS: "${aiReply}"`);
+
   return res.json([
     {
       verb: "say",
@@ -178,5 +195,5 @@ app.get('/', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Jambonz AI Agent webhook listening on port ${PORT}`);
+  console.log(`🚀 Jambonz AI Agent webhook listening on port ${PORT}`);
 });
