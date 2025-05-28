@@ -96,6 +96,10 @@ digitalstorming.com
 async function runLLM(userText) {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      console.error("Missing OPENAI_API_KEY!");
+      return "I'm experiencing technical difficulties. Please try again later.";
+    }
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
@@ -113,34 +117,48 @@ async function runLLM(userText) {
         }
       }
     );
-
     return response.data.choices[0].message.content.trim();
   } catch (error) {
     console.error("OpenAI API error:", error.response?.data || error.message);
-    return "Sorry, I'm having trouble responding right now.";
+    return "Sorry, I'm having trouble responding right now. Can you please repeat?";
   }
 }
 
 // ====== JAMBONZ INITIAL CALL HANDLER ======
 app.post('/', async (req, res) => {
-  return res.json([
-    {
-      verb: "say",
-      text: "Hello! I am Sara from Digital Storming. Is this the trucking company I am trying to reach?",
-    },
-    {
-      verb: "gather",
-      input: ["speech"],
-      actionHook: `${process.env.PUBLIC_URL || "https://your-app.up.railway.app"}/dialog`
-    }
-  ]);
+  // Always return a valid greeting and gather, even if something fails
+  try {
+    return res.json([
+      {
+        verb: "say",
+        text: "Hello! I am Sara from Digital Storming. Is this the trucking company I am speaking with?",
+      },
+      {
+        verb: "gather",
+        input: ["speech"],
+        actionHook: `${process.env.PUBLIC_URL || "https://jambonzai-production.up.railway.app"}/dialog`
+      }
+    ]);
+  } catch (err) {
+    // Fallback if something goes wrong
+    return res.json([
+      {
+        verb: "say",
+        text: "Sorry, I am unable to process your request at the moment. Please call again later."
+      }
+    ]);
+  }
 });
 
 // ====== DIALOG HANDLER ======
 app.post('/dialog', async (req, res) => {
-  const { speech } = req.body;
-  const aiReply = await runLLM(speech);
+  let speech = req.body && req.body.speech ? req.body.speech.trim() : '';
+  let promptText = speech || "The caller did not respond. Politely prompt them again.";
 
+  let aiReply = await runLLM(promptText);
+  if (!aiReply) aiReply = "Sorry, I didn't catch that. Can you please repeat?";
+
+  // Always return a valid JSON response
   return res.json([
     {
       verb: "say",
@@ -149,7 +167,7 @@ app.post('/dialog', async (req, res) => {
     {
       verb: "gather",
       input: ["speech"],
-      actionHook: `${process.env.PUBLIC_URL || "https://your-app.up.railway.app"}/dialog`
+      actionHook: `${process.env.PUBLIC_URL || "https://jambonzai-production.up.railway.app"}/dialog`
     }
   ]);
 });
